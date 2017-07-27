@@ -8,7 +8,7 @@ from Products.CMFCore.utils import getToolByName
 import Products
 import Exporter
 
-def my_external_method(portal):
+def my_external_method(self):
   portal_url = getToolByName(self, 'portal_url')
   portal     = portal_url.getPortalObject()
   
