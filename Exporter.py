@@ -101,7 +101,7 @@ class Exporter:
       self.happens(str(i) + '/' + total)
 
     xml_file = open(self.xml_file.name, 'a')
-    xml_file.write(self.doc.toxml())
+    xml_file.write(self.doc.toprettyxml())
     xml_file.close()
 
 
