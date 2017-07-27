@@ -67,7 +67,7 @@ class Exporter:
                       start = filename[:3]
                       if start[0] == '(' and start[2] == ')':
                         number = int(start[1]) + 1
-                        filename = filename[3:]
+                        filename = filename[4:]
                       else:
                         number = 1
                       filename = '(' + str(number) + ') ' + filename
