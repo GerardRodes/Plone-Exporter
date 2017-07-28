@@ -45,7 +45,7 @@ class Exporter:
       for field in self.contenttype_metadata['fields']: 
         try:
           value = getattr(obj, field['accessor'])()
-          xml_attributes = {}
+          xml_attributes = {'type': field['type']}
           if value:
             if field['type'] == 'file':
               if value.get_size():
