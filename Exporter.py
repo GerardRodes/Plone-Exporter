@@ -119,12 +119,17 @@ class Exporter:
   def dump_object(self, current_object, xml_parent):
     self.parsed_objects += 1
     is_folderish = IFolderish.providedBy(current_object)
-    xml_item = self.createChild(xml_parent, self.normalizer.normalize(current_object.meta_type), None, {
-        'meta_type': current_object.meta_type,
-        'id':        current_object.getId(),
-        'path':      '/'.join(current_object.getPhysicalPath()),
-        'folderish': str(is_folderish),
-      })
+    xml_attributes = {
+      'meta_type': current_object.meta_type,
+      'id':        current_object.getId(),
+      'path':      '/'.join(current_object.getPhysicalPath()),
+      'folderish': str(is_folderish),
+    }
+
+    if hasattr(current_object, 'UID'):
+      xml_attributes['uid'] = current_object.UID()
+
+    xml_item = self.createChild(xml_parent, self.normalizer.normalize(current_object.meta_type), None, xml_attributes)
 
     if current_object.meta_type != 'Plone Site':
       if current_object.meta_type not in self.contenttype_metadata:
@@ -237,9 +242,6 @@ class Exporter:
 
 
   def output_content(self):
-    """
-      TO DO: make it use dump_field
-    """
     root = self.createChild(self.doc, 'items')
     total = str(len(self.content))
     i = 0
