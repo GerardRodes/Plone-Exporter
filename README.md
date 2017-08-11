@@ -20,6 +20,24 @@ def my_external_method(self):
           
 ```
 
+Or just dump the full portal tree object
+```python
+from Products.CMFCore.utils import getToolByName
+
+def my_external_method(self):
+  portal_url = getToolByName(self, 'portal_url')
+  portal     = portal_url.getPortalObject()
+
+  Exporter(
+    portal=portal,
+    meta_types=(
+      'my_custom_meta_type_1',
+      'my_custom_meta_type_2',
+      'my_custom_meta_type_3',
+    )
+  )
+```
+
 # Output
 Creates a folder at `/tmp/exporter/{meta_type}/%Y-%m-%d_%H-%M-%S` with the following files:
 - {meta_type}.xml: XML with all the contents
