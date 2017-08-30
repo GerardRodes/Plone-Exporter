@@ -161,11 +161,13 @@ class Exporter:
       xml_attributes = {'type': field['type']}
       self.happens('Field value: ' + str(value)[:100], 'sub event')
       if value:
-        if field['type'] == 'file':
+        if field['type'] in ('file', 'image'):
           """
             If the value is a file let's download it and relate it correctly
           """
-          if value.get_size():
+          size = value.get_size()
+          if size:
+            self.happens('Files size: ' + size, 'sub event')
             filename     = item.getFilename(field['name'])
             content_type = item.getContentType(field['name'])
 
@@ -364,9 +366,10 @@ class Exporter:
   def research_fields_by_schema(self, schema = None):
     output = []
     for field_instance in schema.fields():
-      field = self.parse_field(field_instance)
-      output.append(field)
-      self.happens('Added field width data: ' + str(field), 'sub_event')
+      if field_instance.getName() != 'id':
+        field = self.parse_field(field_instance)
+        output.append(field)
+        self.happens('Added field width data: ' + str(field), 'sub_event')
 
     return output
 
@@ -377,6 +380,7 @@ class Exporter:
       'type':     field_instance._properties['type'],
       'accessor': field_instance.accessor,
       'mutator':  field_instance.mutator,
+      'instance': field_instance
     }
 
     if not field['accessor']:
