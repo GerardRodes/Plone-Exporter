@@ -20,41 +20,9 @@ class Exporter:
     self.doc = Document()
     self.download_files = download_files
     self.normalizer = getUtility(IIDNormalizer)
-    self.accepted_meta_types = (
-      'ATDocument',
-      'ATFolder', 
-      'ATEvent',
-      'ATFavorite',
-      'ATFile',
-      'ATImage',
-      'ATLink',
-      'ATTopic',
-      'ATNewsItem',
-      'ATBTreeFolder',
-      'FieldsetFolder',
-      'FormBooleanField',
-      'FormCaptchaField',
-      'FormCustomScriptAdapter',
-      'FormDateField',
-      'FormFileField',
-      'FormFixedPointField',
-      'FormFolder',
-      'FormIntegerField',
-      'FormLabelField',
-      'FormLikertField',
-      'FormLinesField',
-      'FormMailerAdapter',
-      'FormMultiSelectionField',
-      'FormPasswordField',
-      'FormRichLabelField',
-      'FormRichTextField',
-      'FormSaveDataAdapter',
-      'FormSelectionField',
-      'FormStringField',
-      'FormTextField',
-      'FormThanksPage',
-    ) + meta_types
+    self.accepted_meta_types = meta_types
     self.contenttype_metadata = {}
+    self.portal_workflow = getToolByName(portal, "portal_workflow")
 
     if meta_type:
       self.output_folder = '/tmp/exporter/' + meta_type + '/' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -126,8 +94,14 @@ class Exporter:
       'folderish': str(is_folderish),
     }
 
-    if hasattr(current_object, 'UID'):
-      xml_attributes['uid'] = current_object.UID()
+    chain = self.portal_workflow.getChainFor(current_object)
+    if len(chain) > 0:
+      state = self.portal_workflow.getStatusOf(chain[0], current_object)
+      if state and 'review_state' in state:
+        xml_attributes['review_state'] = state['review_state']
+
+      if hasattr(current_object, 'UID'):
+        xml_attributes['uid'] = current_object.UID()
 
     xml_item = self.createChild(xml_parent, self.normalizer.normalize(current_object.meta_type), None, xml_attributes)
 
