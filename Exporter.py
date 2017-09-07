@@ -6,11 +6,46 @@ from Products.CMFCore.utils import getToolByName
 from zope.component import getUtility
 from xml.dom.minidom import Document
 from datetime import datetime
-import sys, linecache, Products, os
+import sys, linecache, Products, os, time
 
 reload(sys)
 sys.setdefaultencoding('utf8')
 
+
+PLONE_TYPES = (
+  'ATDocument',
+  'ATFolder', 
+  'ATEvent',
+  'ATFavorite',
+  'ATFile',
+  'ATImage',
+  'ATLink',
+  'ATTopic',
+  'ATNewsItem',
+  'ATBTreeFolder',
+  'FieldsetFolder',
+  'FormBooleanField',
+  'FormCaptchaField',
+  'FormCustomScriptAdapter',
+  'FormDateField',
+  'FormFileField',
+  'FormFixedPointField',
+  'FormFolder',
+  'FormIntegerField',
+  'FormLabelField',
+  'FormLikertField',
+  'FormLinesField',
+  'FormMailerAdapter',
+  'FormMultiSelectionField',
+  'FormPasswordField',
+  'FormRichLabelField',
+  'FormRichTextField',
+  'FormSaveDataAdapter',
+  'FormSelectionField',
+  'FormStringField',
+  'FormTextField',
+  'FormThanksPage',
+)
 
 class Exporter:
 
@@ -20,9 +55,11 @@ class Exporter:
     self.doc = Document()
     self.download_files = download_files
     self.normalizer = getUtility(IIDNormalizer)
-    self.accepted_meta_types = meta_types
+    self.accepted_meta_types = self.test(meta_types, meta_types, PLONE_TYPES)
     self.contenttype_metadata = {}
     self.portal_workflow = getToolByName(portal, "portal_workflow")
+
+    self.FILE_COUNT = 0
 
     if meta_type:
       self.output_folder = '/tmp/exporter/' + meta_type + '/' + datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -32,7 +69,7 @@ class Exporter:
       self.xml_filename = portal.getId() + '.xml'
 
     self.create_output_files()
-    self.happens('Initialized')
+    self.happens('Initialized', new_line=False)
 
     if schema and meta_type:
       self.mode = 'meta_type'
@@ -47,18 +84,18 @@ class Exporter:
     elif portal:
       self.mode = 'full_portal'
       self.contenttype_metadata = {}
-      self.total_objects = 0
+      self.total_objects = len( self.portal.portal_catalog({
+        'meta_type': {
+          'query': self.accepted_meta_types
+        },
+        'path': {
+          'query': '/'.join(self.portal.getPhysicalPath()),
+          'depth': 9999,
+        }
+      }) )
 
-      def count_objects(item):
-        self.total_objects += 1
-        if IFolderish.providedBy(item):
-          childs_ids = self.test(hasattr(item, 'objectIds'), item.objectIds(), item.keys())
-          for child_id in childs_ids:
-            child = item.get(child_id)
-            if child.meta_type in self.accepted_meta_types:
-              count_objects(child)
+      self.happens('%i objects matches meta types' % (self.total_objects))
 
-      count_objects(self.portal)
       self.parsed_objects = 0
       self.dump_object(self.portal, self.createChild(self.doc, 'portal'))
       # Output XML
@@ -141,32 +178,15 @@ class Exporter:
           """
           size = value.get_size()
           if size:
-            self.happens('Files size: ' + size, 'sub event')
-            filename     = item.getFilename(field['name'])
+            self.happens('Files size: ' + str(size), 'sub event')
+            filename     = item.getFilename(field['name']) or item.getId()
+            timestamp    = str(int(round(time.time())*1000))
             content_type = item.getContentType(field['name'])
-
-            if not filename:
-              filename = item.getId() + '.' + content_type.split('/')[1]
-
-            if os.path.exists(self.output_folder + '/files/' + filename):
-              """
-                If file exists check if is has the same content, if doesn't give a new filename
-              """
-              file = open(self.output_folder + '/files/' + filename, 'r')
-              content = file.read()
-              file.close()
-              if content != str(value):
-                while os.path.exists(self.output_folder + '/files/' + filename):
-                  start = filename[:3]
-                  if start[0] == '(' and start[2] == ')':
-                    number = int(start[1]) + 1
-                    filename = filename[4:]
-                  else:
-                    number = 1
-                  filename = '(' + str(number) + ') ' + filename
-
-            if not os.path.exists(self.output_folder + '/files/' + filename) and self.download_files:
-              file = open(self.output_folder + '/files/' + filename, 'w+')
+            extension    = content_type.split('/')[1]
+            temp_name    = str(self.FILE_COUNT) + timestamp + '.' + extension
+            self.FILE_COUNT  += 1
+            if self.download_files:
+              file = open(self.output_folder + '/files/' + temp_name, 'w+')
               file.write(str(value))
               file.close()
 
@@ -174,7 +194,7 @@ class Exporter:
             xml_attributes['filename']     = filename
             xml_attributes['download_url'] = item.absolute_url() + '/at_download/' + field['name']
 
-            self.createChild(xml_item, field['name'], './files/' + filename, xml_attributes)
+            self.createChild(xml_item, field['name'], './files/' + temp_name, xml_attributes)
 
         elif field['type'] == 'text':
           xml_attributes['content_type'] = item.getContentType(field['name'])
@@ -381,10 +401,13 @@ class Exporter:
     return child
 
 
-  def happens(self, msg, log_type = 'event'):
+  def happens(self, msg, log_type = 'event', new_line = True):
     if log_type in self.log_shows:
       log_file = open(self.log_file.name, 'a')
-      output = datetime.now().strftime('%H:%M:%S') + ' -- ' + msg + '\n'
-      print output
+      output = self.test(new_line,'\n' + datetime.now().strftime('%H:%M:%S') + ' -- ' + str(msg), str(msg))
+      sys.stdout.write(output)
+      sys.stdout.flush()
       log_file.write(output)
       log_file.close()
+
+
